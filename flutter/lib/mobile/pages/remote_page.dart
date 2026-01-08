@@ -573,6 +573,8 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
 
   Widget getBodyForMobile() {
     final keyboardIsVisible = keyboardVisibilityController.isVisible;
+    // [Check] Check if the language code of the current app is 'ko' (Korean).
+    final bool isKorean = Localizations.localeOf(context).languageCode == 'ko';
     return Container(
         color: MyTheme.canvasColor,
         child: Stack(children: () {
@@ -593,7 +595,15 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
                   ? Container()
                   : TextFormField(
                       textInputAction: TextInputAction.newline,
-                      autocorrect: false,
+                      // [Edit] If it's Korean, autocorrect must be true, or at least enableSuggestions must be true.
+                      // If these options are turned off, the Samsung keyboard recognizes it as a simple terminal and breaks the combination.
+                      autocorrect: isKorean ? true : false,
+                      // [Fix] Enable suggestions when in Korean.
+                      // Preventing Korean input corruption is a top priority.
+                      enableSuggestions: isKorean ? true : false,
+                      // [Edit] Korean Core Options (IME Combination Required)
+                      enableInteractiveSelection: isKorean ? true : false,
+
                       // Flutter 3.16.9 Android.
                       // `enableSuggestions` causes secure keyboard to be shown.
                       // https://github.com/flutter/flutter/issues/139143
