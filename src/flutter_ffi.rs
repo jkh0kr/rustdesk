@@ -1224,9 +1224,14 @@ pub fn main_set_local_option(key: String, value: String) {
     let is_texture_render_key = key.eq(config::keys::OPTION_TEXTURE_RENDER);
     let is_d3d_render_key = key.eq(config::keys::OPTION_ALLOW_D3D_RENDER);
     set_local_option(key, value.clone());
+    let is_render_target =
+        |session: &crate::flutter::FlutterSession| session.is_default() || session.is_view_camera();
     if is_texture_render_key {
         let session_event = [("v", &value)];
         for session in sessions::get_sessions() {
+            if !is_render_target(&session) {
+                continue;
+            }
             session.push_event("use_texture_render", &session_event, &[]);
             session.use_texture_render_changed();
             session.ui_handler.update_use_texture_render();
@@ -1234,6 +1239,9 @@ pub fn main_set_local_option(key: String, value: String) {
     }
     if is_d3d_render_key {
         for session in sessions::get_sessions() {
+            if !is_render_target(&session) {
+                continue;
+            }
             session.update_supported_decodings();
         }
     }
@@ -2852,8 +2860,16 @@ pub fn main_get_common(key: String) -> String {
                 crate::platform::windows::is_msi_installed(),
                 crate::common::is_custom_client(),
             ) {
-                (Ok(true), false) => format!("rustdesk-{_version}-x86_64.msi"),
-                (Ok(true), true) | (Ok(false), _) => format!("rustdesk-{_version}-x86_64.exe"),
+                (Ok(true), false) => match crate::platform::windows::release_arch_suffix() {
+                    Some(arch) => format!("rustdesk-{_version}-{arch}.msi"),
+                    None => "error:unsupported".to_owned(),
+                },
+                (Ok(true), true) | (Ok(false), _) => {
+                    match crate::platform::windows::release_arch_suffix() {
+                        Some(arch) => format!("rustdesk-{_version}-{arch}.exe"),
+                        None => "error:unsupported".to_owned(),
+                    }
+                }
                 (Err(e), _) => {
                     log::error!("Failed to check if is msi: {}", e);
                     format!("error:update-failed-check-msi-tip")
